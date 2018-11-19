@@ -71,7 +71,9 @@ var ErrSessionNotFound = errors.New("SessionID does not exists")
 // GetSessionData returns data related to session if sessionID is
 // found, errors otherwise
 func (m *SessionManager) GetSessionData(sessionID string) (map[string]interface{}, error) {
+	m.Lock()
 	session, ok := m.sessions[sessionID]
+	m.Unlock()
 	if !ok {
 		return nil, ErrSessionNotFound
 	}
@@ -99,16 +101,13 @@ func (m *SessionManager) UpdateSessionData(sessionID string, data map[string]int
 func (m *SessionManager) CleanInactiveSessionInBack() {
 	go func() {
 		for {
+			m.Lock()
 			for k, v := range m.sessions {
-				if time.Since(v.Time)/time.Second > time.Duration(5)*time.Second {
-					m.Lock()
-					log.Println("Delete the session")
-					log.Println(time.Since(v.Time) / time.Second)
-					log.Println(time.Duration(5) * time.Second)
+				if time.Since(v.Time) > time.Duration(5)*time.Second {
 					delete(m.sessions, k)
-					m.Unlock()
 				}
 			}
+			m.Unlock()
 		}
 	}()
 }
@@ -132,6 +131,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	time.Sleep(10 * time.Second)
 	log.Println("Update session data, set website to longhoang.de")
 
 	// Retrieve data from manager again
